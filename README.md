@@ -6,6 +6,7 @@ the note on f=tr is wrong, it drives the console reset trigger than 2N7002.
 
 
 oh and 100nf on Z between it and ground alike magic ice :) forgot to tell it to add to notes
+
 also powered it from 5v with diode so won't back feed to console. IMPORTANT!!!
 
 and noted v5/6 i did something dumb mid way with power supply to mb, cooking mb. cbf finding it was quicker to just grab another test unit heh.
