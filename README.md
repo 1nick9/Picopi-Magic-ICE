@@ -7,6 +7,8 @@ the note on f=tr is wrong, it drives the console reset trigger than 2N7002.
 
 oh and 100nf on Z between it and ground alike magic ice :) forgot to tell it to add to notes
 
+and noted v5/6 i did something dumb mid way with power supply to mb, cooking mb. cbf finding it was quicker to just grab another test unit heh.
+
 # ps2-ice-pico
 
 A port of the **H2O-Improved / Magic ICE** PS2 modchip firmware from the
