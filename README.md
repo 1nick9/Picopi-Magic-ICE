@@ -5,6 +5,8 @@ also only direct a no flipflop tested.
 the note on f=tr is wrong, it drives the console reset trigger than 2N7002.
 
 
+oh and 100nf on Z between it and ground alike magic ice :) forgot to tell it to add to notes
+
 # ps2-ice-pico
 
 A port of the **H2O-Improved / Magic ICE** PS2 modchip firmware from the
