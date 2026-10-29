@@ -1,6 +1,6 @@
 Top note i vibe coded this port, wasnt as simple as feed it the code and done, had to really guide it. but anyway got a good working f=tr branch, no others been confirmed figure post as is once have 100% working f=tr branch on console tested. This would have taken me for ever on own. really great things, left the readme as it summaried for posting. any way now have a modulared off code base for picopi to work with :)
 
-also only direct a no flipflop tested.
+also only direct a no flipflop tested. flipflop is only needed dragon mechacon, which u got mechapwn n such so havent tested it. also easier to wire up direct to A
 
 the note on f=tr is wrong, it drives the console reset trigger than 2N7002.
 
