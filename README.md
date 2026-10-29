@@ -11,6 +11,8 @@ IMPORTANT!!! also powered it from 5v with diode so won't back feed to console. I
 
 and noted v5/6 i did something dumb mid way with power supply to mb, cooking mb. cbf finding it was quicker to just grab another test unit heh.
 
+expect bugs outside of test unit case for ice. its vibed n took bit to get it operating as should in one test unit
+
 # ps2-ice-pico
 
 A port of the **H2O-Improved / Magic ICE** PS2 modchip firmware from the
