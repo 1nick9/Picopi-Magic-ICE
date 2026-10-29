@@ -1,0 +1,189 @@
+;
+; mech_bus.pio - mechacon CD/DVD data bus (pads F,B,G,H,I + OE "A")
+;
+; Two wiring variants, selected at compile time in mech_bus.c:
+;
+;   DIRECT   : A (CDDVD /OE) on MECH_EDGE_PIN.  The PIO latches the edge itself -
+;              this replaces the 74xx flip-flop of the original board.
+;   FLIPFLOP : original board.  A clocks the flip-flop, /1Q is on MECH_EDGE_PIN,
+;              /1R is on the SET pin and is pulsed low after every sample
+;              (the `clrb/nop/setb IO_CDDVD_OE_A_1R` of the asm).
+;
+; In both cases the CPU sees the same thing: the read state machine pushes one
+; 5-bit word (bit0=F bit1=B bit2=G bit3=H bit4=I) per mechacon OE edge, and
+; the write state machine takes one word per edge to drive B,G,H,I.
+;
+; Pins come from include/boards/ice_board_*.h.  Every "wait ... gpio 0" below
+; is retargeted to MECH_EDGE_PIN (A, or /1Q) at load time by mech_bus.c, and
+; the delay on the instruction labelled "sample" is set from
+; MECH_SAMPLE_DELAY_CYCLES - so pin numbers and the delay live only in the
+; C headers.  B,G,H,I are the IN and OUT pins (4).  F is not part of the
+; PIO at all: it is only the H2O75KJMPERS jumper input (plain GPIO + pull-up).
+;
+; Must match MECH_OE_ACTIVE_LOW in config.h (checked in mech_bus.c):
+.define PUBLIC MECH_PIO_EDGE_ACTIVE   0      ; 0 = OE active low (falling edge)
+.define MECH_PIO_EDGE_IDLE            1
+
+; ---------------------------------------------------------------------------
+; MECHACON_WAIT_OE / every "snb IO_CDDVD_OE_A_1Q ... and w,IO_CDDVD_BUS" read
+; ---------------------------------------------------------------------------
+; Measured (DSLogic, 100 MS/s, real console): A low 260-320 ns; B,G,H,I
+; change 30-70 ns after A falls and hold until after A rises.  Plus bursts
+; of 20-100 ns pulses on A between strobes.
+;
+; Which A pulses count as a mechacon strobe (MECH_GLITCH_FILTER, config.h):
+;   0 (default) = as the SX28 board: the 74HC73 clocks on every A fall that
+;     lasts its minimum pulse width, so a pulse counts if A is still low at
+;     "gate0" (MECH_MIN_PULSE_NS after the fall).  "gate" is a NOP.
+;   1 = only pulses still low at the sample point count ("gate" active,
+;     "gate0" a NOP).
+; The bus is read ~MECH_SAMPLE_DELAY_NS after the fall either way.  Delays at
+; "sample" (min width) and "dly" (rest of the sample delay) are set at load.
+.program mech_read_direct
+.wrap_target
+public sample:
+    wait MECH_PIO_EDGE_ACTIVE gpio 0 [2]          ; delay patched: min width
+public gate0:
+    jmp pin, skip                   ; shorter than an HC73 clock pulse
+public dly:
+    nop [8]                         ; delay patched: rest of the sample delay
+public gate:
+    jmp pin, skip                   ; filter 1: A already inactive again
+    in pins, 4                      ; B,G,H,I (F is not a bus line: jumper input only)
+skip:
+    wait MECH_PIO_EDGE_IDLE gpio 0
+.wrap
+
+; Debug read-back (DIRECT + ICE_DEBUG only, its own state machine): the bus
+; late in the strobe, while A is still low and the mechacon side is still
+; driving - what the mechacon latches when A rises, including any fight
+; between the Pico and the chip that normally drives B,G,H,I.  Same glitch
+; gate as the reader, so word i here is strobe i there.  The loop count at
+; "late" is set at load time from MECH_READBACK_NS.
+.program mech_rise
+.wrap_target
+public sample:
+    wait MECH_PIO_EDGE_ACTIVE gpio 0 [8]          ; delay patched: gate point
+public gate:
+    jmp pin, sample                 ; not counted by the reader either
+public late:
+    set x, 17                       ; count patched at load
+lp:
+    jmp x-- lp [1]                  ; 2 cycles per loop
+    in pins, 4                      ; B,G,H,I just before A rises
+    wait MECH_PIO_EDGE_IDLE gpio 0
+.wrap
+
+.program mech_read_ff
+    set pins, 1                     ; /1R high = flip-flop armed
+.wrap_target
+public sample:
+    wait 0 gpio 0 [8]               ; /1Q low: an A edge was latched (delay patched)
+    in pins, 4                      ; B,G,H,I
+    set pins, 0 [1]                 ; clrb 1R ; nop
+    set pins, 1                     ; setb 1R
+    wait 1 gpio 0
+.wrap
+
+; ---------------------------------------------------------------------------
+; Writer.  TX word (shifted out LSB first):
+;   bit 0      apply immediately (1) or at the next A edge (0)
+;   bits 5..1  pre-delay for immediate words, in units of 4 PIO cycles
+;              (the 1-byte patch release: the asm releases ~80 ns after it
+;              started driving, without waiting for another edge)
+;   bits 9..6  data for B,G,H,I
+;   bits 13..10 pin directions for B,G,H,I (1 = drive)
+; Covers: "patch bus first time" (GHI out, 0), the one-byte $90/$6f patch,
+; the 8-byte region nibble stream, and the final "mov !IO_CDDVD_BUS,#$ff".
+; ---------------------------------------------------------------------------
+.program mech_out_direct
+.wrap_target
+    pull block
+    out x, 1
+    out y, 5
+    jmp !x edge
+dly:
+    jmp y-- dly [3]                 ; pre-delay (immediate words)
+    jmp apply
+edge:
+    wait MECH_PIO_EDGE_IDLE gpio 0
+public sample:
+    wait MECH_PIO_EDGE_ACTIVE gpio 0 [2]          ; delay patched: min width
+public gate0:
+    jmp pin, edge                   ; same strobe rule as the reader
+public wdly:
+    nop [8]                         ; delay patched: rest of the write delay
+public gate:
+    jmp pin, edge
+apply:
+    out pins, 4
+    out pindirs, 4
+.wrap
+
+.program mech_out_ff
+.wrap_target
+    pull block
+    out x, 1
+    out y, 5
+    jmp !x edge
+dly:
+    jmp y-- dly [3]
+    jmp apply
+edge:
+    wait 1 gpio 0
+    wait 0 gpio 0
+apply:
+    out pins, 4
+    out pindirs, 4
+.wrap
+
+% c-sdk {
+static inline void mech_read_program_init_common(PIO pio, uint sm, uint offset,
+                                                 pio_sm_config *c, uint b_pin)
+{
+    sm_config_set_jmp_pin(c, MECH_EDGE_PIN);       /* glitch gate */
+    for (uint i = 0; i < 4; i++) pio_gpio_init(pio, b_pin + i);
+    pio_sm_set_consecutive_pindirs(pio, sm, b_pin, 4, false);
+    sm_config_set_in_pins(c, b_pin);
+    sm_config_set_in_shift(c, false, true, 4);     /* autopush @4: B,G,H,I */
+    sm_config_set_fifo_join(c, PIO_FIFO_JOIN_RX);
+    pio_sm_init(pio, sm, offset, c);
+}
+
+static inline void mech_read_direct_program_init(PIO pio, uint sm, uint offset, uint b_pin)
+{
+    pio_sm_config c = mech_read_direct_program_get_default_config(offset);
+    mech_read_program_init_common(pio, sm, offset, &c, b_pin);
+}
+
+static inline void mech_rise_program_init(PIO pio, uint sm, uint offset, uint b_pin)
+{
+    pio_sm_config c = mech_rise_program_get_default_config(offset);
+    sm_config_set_jmp_pin(&c, MECH_EDGE_PIN);
+    sm_config_set_in_pins(&c, b_pin);
+    sm_config_set_in_shift(&c, false, true, 4);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+    pio_sm_init(pio, sm, offset, &c);
+}
+
+static inline void mech_read_ff_program_init(PIO pio, uint sm, uint offset, uint b_pin, uint r_pin)
+{
+    pio_sm_config c = mech_read_ff_program_get_default_config(offset);
+    pio_gpio_init(pio, r_pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, r_pin, 1, true);
+    sm_config_set_set_pins(&c, r_pin, 1);
+    mech_read_program_init_common(pio, sm, offset, &c, b_pin);
+}
+
+static inline void mech_out_program_init(PIO pio, uint sm, uint offset, bool ff, uint b_pin)
+{
+    pio_sm_config c = ff ? mech_out_ff_program_get_default_config(offset)
+                         : mech_out_direct_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, b_pin, 4);
+    sm_config_set_jmp_pin(&c, MECH_EDGE_PIN);      /* glitch gate */
+    sm_config_set_out_shift(&c, true, false, 32);  /* shift right, manual pull */
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    pio_sm_set_consecutive_pindirs(pio, sm, b_pin, 4, false);
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}

@@ -1,0 +1,124 @@
+;
+; bios_bus.pio - PS2 IOP boot-ROM bus for the Magic ICE port
+;
+; Follows the SX28: a BIOS "byte" is an /OE low strobe.  BIOS CE is NOT used
+; to qualify bytes or patch cycles - the asm only looks at CS in a few
+; places (resume-from-eject, first byte of the XCDVDMAN / PS2LOGO syncs,
+; mechacon region-sync exit, SCEx, sleep wake), and those are done in C
+; using the CE level that the sniffer records with every byte.
+;
+; Pins (any GPIOs, set in include/boards/ice_board_*.h):
+;   D0..D7  : 8 consecutive GPIOs = IN base / OUT base.
+;   BIOS OE : the trigger.  Every "wait ... gpio" is retargeted to
+;             BIOS_OE_PIN at load time (bios_bus.c); "gpio 0" is a placeholder.
+;             It is also the JMP pin: a strobe that is already over at the
+;             check point (~80 ns after /OE fell) is dropped - the capture
+;             shows runs of 8-56 ns /OE strobes for other devices whose
+;             "data" is garbage, real ROM reads are 128-136 ns.  With
+;             BIOS_QUALIFY_NONE the "gate" jmps become NOPs.
+;
+; Measured (DSLogic, real console): ROM read /OE low 128-136 ns every 216 ns,
+; data valid <= 40 ns after /OE falls.  The sample delay (label "sample") and
+; the check delay (label "chk") are patched at load time from the ns values
+; in config.h converted for SYS_CLOCK_KHZ.
+
+; ---------------------------------------------------------------------------
+; bios_sniff : one 32-bit word per strobe = all GPIO levels at the sample
+;              point, rotated so bit 0..7 = D0..D7.  The CPU takes the data
+;              byte and, where the asm tests CS, the CE bit of the same word.
+; ---------------------------------------------------------------------------
+.program bios_sniff
+.wrap_target
+public sample:
+    wait 0 gpio 0 [8]           ; /OE fell, let the ROM drive the bus (delay patched)
+    in pins, 32                 ; D0..D7 + CE/OE/... levels at the sample point
+public chk:
+    nop [3]                     ; -> check point (delay patched: BIOS_CHECK_CYCLES-2)
+public gate:
+    jmp pin, drop               ; /OE already high: short non-ROM strobe
+    push block
+idle:
+    wait 1 gpio 0               ; end of this strobe
+.wrap
+drop:
+    mov isr, null               ; discard the sample
+    jmp idle
+
+; ---------------------------------------------------------------------------
+; bios_out : RUN_BIOS_PATCHES_SRAM, generalised.
+;
+; TX: [count-1], then one word per /OE cycle: bits 7..0 data, bits 15..8
+;     pin directions (0xff = drive this cycle, 0x00 = let the ROM through).
+;     Undriven cycles let one stream carry "patch / skip N / patch" without
+;     the CPU in the loop (PS1 logo patch: 4 + 25 + 4 + 25 + 4 cycles).
+; ARM : SM loads count and the first word and parks on "wait 1 irq 7".
+; FIRE: CPU forces irq 7 the instant the last sync byte matched.
+;
+;   SX28                                 here
+;   wait /OE high                        wait 1 OE      (finish sync cycle)
+;   data latch = P, pindirs = out        out pins,8 ; out pindirs,8
+;   wait /OE low  (PS2 latches P)        wait 0 OE (same check as the sniffer)
+;   next byte, wait /OE low ...          wait 1 OE ; out pins/pindirs ; ...
+;   wait /OE high, pindirs = in          wait 1 OE ; out pindirs,8 (zeros)
+; ---------------------------------------------------------------------------
+.program bios_out
+    pull block
+    mov y, osr                  ; y = count-1
+    pull block                  ; first cycle word
+public armed:
+    wait 1 irq 7                ; parked until the CPU fires (flag auto-clears)
+    wait 1 gpio 0               ; let the current (sync) cycle finish
+    out pins, 8                 ; byte for the first cycle...
+    out pindirs, 8              ; ...driven (or not) before /OE falls
+cycle:
+public sample:
+    wait 0 gpio 0 [8]           ; next /OE strobe
+public chk:
+    nop [4]                     ; same check point as the sniffer (BIOS_CHECK_CYCLES-1)
+public gate:
+    jmp pin, foreign            ; strobe already over: not a ROM read
+    wait 1 gpio 0               ; read done, IOP has latched the byte
+    jmp y-- more
+    mov osr, null
+    out pindirs, 8              ; release the bus
+    irq 0
+done:
+    jmp done                    ; parked until the CPU restarts us
+more:
+    pull block
+    out pins, 8                 ; next cycle's byte while /OE is high
+    out pindirs, 8
+    jmp cycle
+foreign:
+    wait 1 gpio 0
+    jmp cycle
+
+
+% c-sdk {
+static inline void bios_sniff_program_init(PIO pio, uint sm, uint offset,
+                                           uint d0_pin, uint jmp_pin)
+{
+    for (uint i = 0; i < 8; i++) pio_gpio_init(pio, d0_pin + i);
+    pio_sm_set_consecutive_pindirs(pio, sm, d0_pin, 8, false);
+
+    pio_sm_config c = bios_sniff_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, d0_pin);
+    sm_config_set_jmp_pin(&c, jmp_pin);
+    sm_config_set_in_shift(&c, false, false, 32);  /* manual push of 32 bits */
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+    pio_sm_init(pio, sm, offset, &c);
+}
+
+static inline void bios_out_program_init(PIO pio, uint sm, uint offset,
+                                         uint d0_pin, uint jmp_pin)
+{
+    pio_sm_config c = bios_out_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, d0_pin, 8);
+    sm_config_set_jmp_pin(&c, jmp_pin);
+    sm_config_set_out_shift(&c, true, false, 32);  /* shift right, manual pull */
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    /* data pins start as inputs; the program flips pindirs itself */
+    pio_sm_set_consecutive_pindirs(pio, sm, d0_pin, 8, false);
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}
