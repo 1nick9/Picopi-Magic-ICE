@@ -30,7 +30,13 @@ extern const uint8_t logo_sram_v10v12[110];
 extern const uint8_t logo_sram_v14[123];
 
 /* V14 PS1DRV SRAM image (PS1_V14_PATCH sends 49 bytes from k=6) */
-extern const uint8_t ps1drv_v14_sram[55];
+extern const uint8_t ps1drv_v14_nontscfix_sram[55];
+extern const uint8_t ps1drv_v14_ntscfix_sram[55];
+#if defined(NTSCPS1YFIX75K)
+#define ps1drv_v14_sram     ps1drv_v14_ntscfix_sram
+#else
+#define ps1drv_v14_sram     ps1drv_v14_nontscfix_sram
+#endif
 
 /* DEV1 modload patch (bytes 7,8 patched per console by dev1_load()) */
 extern const uint8_t dev1_patch_h2o[115];
