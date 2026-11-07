@@ -1,15 +1,10 @@
 Top note i vibe coded this port, wasnt as simple as feed it the code and done, had to really guide it. but anyway got a good working f=tr branch, no others been confirmed figure post as is once have 100% working f=tr branch on console tested. This would have taken me for ever on own. really great things, left the readme as it summaried for posting. any way now have a modulared off code base for picopi to work with :)
 
-also only direct a no flipflop tested. flipflop is only needed dragon mechacon, which u got mechapwn n such so havent tested it. also easier to wire up direct to A
-
-the note on f=tr is wrong, it drives the console reset trigger than 2N7002.
-
-
-oh and 100nf on Z between it and ground alike magic ice :) forgot to tell it to add to notes
 
 IMPORTANT!!! also powered it from 5v with diode so won't back feed to console. IMPORTANT!!!
 
-and noted v5/6 i did something dumb mid way with power supply to mb, cooking mb. cbf finding issue all fuses n regs good, was quicker to just grab another test unit heh.
+
+dragon (dragon mecha will most likely need flipflop) and v9 bios patch routine yet to be tested.
 
 expect bugs outside of test unit case for ice. its vibed n took bit to get it operating as should in one test unit
 
@@ -26,10 +21,6 @@ routine by routine: same syncs, same strobe counts, same patch data, same
 flow between routines. Comments in the C sources quote the asm labels they
 implement.
 
-> **Status: only the F=TR build on a Waveshare RP2040-Tiny has been tested
-> and confirmed working** (JAP v7/v8 console, BIOS rev 1.60).
-> RSTBUMP, H2O75KJMPERS, the flip-flop wiring, the other boards and the
-> fixed-region builds compile, but have not been tested on a console.
 
 ## Features (as in the H2O SX28 code)
 
@@ -55,6 +46,46 @@ implement.
 | DEV1 (`mc0:/BOOT/BOOT.ELF`) | working |
 | Disable mode until standby | working |
 
+| Item | Result |
+|---|---|
+| Board | YD-RP2040, 240 MHz |
+| Console | JAP v7/v8 (BIOS rev 1.60, year 2002), mechacon v1–v8 path |
+| Build | F=TR (RSTBUMP off, H2O75KJMPERS off), H2O dev1, DIRECT mechacon OE |
+| PS2 originals / backups, DVD unlock | working |
+| PS1 mode (SCEx, PS1 logo) | working |
+| DEV1 (`mc0:/BOOT/BOOT.ELF`) | working |
+| Disable mode until standby | working |
+
+| Item | Result |
+|---|---|
+| Board | Waveshare RP2040-Tiny, 240 MHz |
+| Console | PAL v5/v6 (BIOS rev 1.60, year 2001), mechacon v1–v8 path |
+| Build | F=TR (RSTBUMP off, H2O75KJMPERS off), H2O dev1, DIRECT mechacon OE |
+| PS2 originals / backups, DVD unlock | working |
+| PS1 mode (SCEx, PS1 logo) | working |
+| DEV1 (`mc0:/BOOT/BOOT.ELF`) | working |
+| Disable mode until standby | working |
+
+| Item | Result |
+|---|---|
+| Board | Waveshare RP2040-Tiny, 240 MHz |
+| Console | PAL v3 , mechacon v1–v8 path |
+| Build | F=TR (RSTBUMP off, H2O75KJMPERS off), H2O dev1, DIRECT mechacon OE |
+| PS2 originals / backups, DVD unlock | working |
+| PS1 mode (SCEx, PS1 logo) | working (lens fit as ice original so ported right) |
+| DEV1 (`mc0:/BOOT/BOOT.ELF`) | working |
+| Disable mode until standby | working |
+
+| Item | Result |
+|---|---|
+| Board | Waveshare RP2040-Tiny, 240 & 200 MHz |
+| Console | PAL v3 , mechacon v1–v8 path |
+| Build | RSTBUMP (H2O75KJMPERS off & on), H2O dev1, DIRECT & FLIPFLOP mechacon OE |
+| PS2 originals / backups, DVD unlock | working |
+| PS1 mode (SCEx, PS1 logo) | working (lens fit as ice original so ported right) |
+| DEV1 (`mc0:/BOOT/BOOT.ELF`) | working |
+| Disable mode until standby | working |
+
 Series resistors used on the tested install:
 
 | Point | Resistor |
@@ -62,11 +93,14 @@ Series resistors used on the tested install:
 | RESET | 33 kΩ |
 | R (BIOS /OE) | 3.3 kΩ |
 | W (BIOS /CE) | 3.3 kΩ |
-| A (mechacon OE) | 1.2 kΩ |
+| A (mechacon OE WHEN DIRECT, FLIPFLOP OMIT) | 1.2 kΩ |
 
-A JAP v5/v6 console (BIOS rev 1.60, year 2001) has not unlocked DVDs in
-testing so far; it was tested only with RSTBUMP + H2O75KJMPERS builds and
-on a YD-RP2040, and is still to be retested with the F=TR build.
+| Point | value |
+|---|---|
+| 5v | 1N5819 |
+| Z  | 100nf cap to gnd |
+
+
 
 ## Prebuilt firmware
 
@@ -106,8 +140,7 @@ Letters are the usual Magic ICE / H2O install points.
 | Flip-flop /1R (FLIPFLOP builds) | — | GP19 | GP29 |
 | Status LED | — | GP25 | — |
 
-- **F=TR:** pad F drives the gate of a 2N7002 (with a gate pull-down) whose
-  drain pulls the console RESET; used for the auto-reset into PS1 mode.
+- **F=TR:** pad F drives the gate of a TR point in subzero diagrams; used for the auto-reset into PS1 mode.
 - **v1–v8 consoles:** G is not needed. H is needed on JAP consoles.
 - **DIRECT** (default): A goes straight to a GPIO; the PIO does the job of
   the 74HC73 flip-flop of the original board. **FLIPFLOP**: original board
