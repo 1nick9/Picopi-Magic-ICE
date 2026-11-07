@@ -89,7 +89,7 @@ implement.
 |---|---|
 | Board | Waveshare RP2040-Tiny, 240 & 200 MHz |
 | Console | PAL v3 , mechacon v1–v8 path |
-| Build | RSTBUMP (H2O75KJMPERS off & on), H2O dev1, DIRECT & FLIPFLOP mechacon OE |
+| Build | RSTBUMP (H2O75KJMPERS off & on), H2O dev1, FLIPFLOP mechacon OE |
 | PS2 originals / backups, DVD unlock | working |
 | PS1 mode (SCEx, PS1 logo) | working (lens fit as ice original so ported right) |
 | DEV1 (`mc0:/BOOT/BOOT.ELF`) | working |
