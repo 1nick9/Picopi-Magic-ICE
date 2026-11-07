@@ -39,7 +39,7 @@ implement.
 | Item | Bootmode |
 |---|---|
 | Autoboot | Tap reset, will boot. If PS1/DVD will reboot into PS1/DVD mode |
-| PS1/DVD | Hold reset 2seconds from standby (fat till blue eject on) |
+| PS1/DVD | Hold reset 2 seconds from standby (fat till blue eject on) |
 | Disable | Hold reset for 4 seconds (stays disabled till put into standby) |
 | DEV1 | Hold reset for 4 seconds followed by tap of reset within 10 seconds |
 
@@ -143,7 +143,7 @@ Letters are the usual Magic ICE / H2O install points.
 | RESET | RST | GP10 | GP26 |
 | EJECT (tray) | Z | GP11 | GP27 |
 | SCEx | S | GP12 | GP28 |
-| Mechacon F (F=TR: 2N7002 gate) | F | GP13 | GP10 |
+| Mechacon F (F=TR)| F | GP13 | GP10 |
 | Mechacon B, G, H, I | B G H I | GP14..GP17 | GP11..GP14 |
 | Mechacon OE (DIRECT) / flip-flop /1Q | A | GP18 | GP15 |
 | Flip-flop /1R (FLIPFLOP builds) | — | GP19 | GP29 |
