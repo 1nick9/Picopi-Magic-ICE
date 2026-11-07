@@ -99,7 +99,7 @@ Series resistors used on the tested install:
 
 | Point | Resistor |
 |---|---|
-| RESET | 33 kΩ |
+| RESET F=TR (RSTBMP just direct to 2N7002) | 33 kΩ |
 | R (BIOS /OE) | 3.3 kΩ |
 | W (BIOS /CE) | 3.3 kΩ |
 | A (mechacon OE WHEN DIRECT, FLIPFLOP OMIT) | 1.2 kΩ |
