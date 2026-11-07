@@ -1,4 +1,4 @@
-Top note i vibe coded this port, wasnt as simple as feed it the code and done, had to really guide it. but anyway got a good working f=tr branch, no others been confirmed figure post as is once have 100% working f=tr branch on console tested. This would have taken me for ever on own. really great things, left the readme as it summaried for posting. any way now have a modulared off code base for picopi to work with :)
+Top note i vibe coded this port, wasnt as simple as feed it the code and done, had to really guide it. but anyway got a good working base. This would have taken me for ever on own. really great things, left the readme as it summaried for posting. any way now have a modulared off code base for picopi to work with :)
 
 
 IMPORTANT!!! also powered it from 5v with diode so won't back feed to console. IMPORTANT!!!
@@ -34,7 +34,14 @@ implement.
 - Auto-reset into PS1 mode when a PS2 logo is not found (F=TR or RSTBUMP)
 - Sleep / wake on BIOS CS, reset and tray edges, as the SX28 does
 
-## Tested
+## BOOTMODES
+
+| Item | Bootmode |
+|---|---|
+| Autoboot | Tap reset, will boot. If PS1/DVD will reboot into PS1/DVD mode |
+| PS1/DVD | Hold reset 2seconds from standby (fat till blue eject on) |
+| Disable | Hold reset for 4 seconds (stays disabled till put into standby) |
+| DEV1 | Hold reset for 4 seconds followed by tap of reset within 10 seconds |
 
 | Item | Result |
 |---|---|
