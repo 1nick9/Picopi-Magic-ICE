@@ -43,6 +43,8 @@ implement.
 | Disable | Hold reset for 4 seconds (stays disabled till put into standby) |
 | DEV1 | Hold reset for 4 seconds followed by tap of reset within 10 seconds |
 
+## TESTED
+
 | Item | Result |
 |---|---|
 | Board | Waveshare RP2040-Tiny, 240 MHz |
